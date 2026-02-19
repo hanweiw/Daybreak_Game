@@ -3,39 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>破晓行动 v6.5 | 结构化实验版</title>
+    <title>破晓行动 v6.6 | 完整修复版</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <style>
-        /* [容器隔离] 基础全局样式 */
         :root { --primary: #3498db; --danger: #e74c3c; --success: #2ecc71; --dark: #2c3e50; --gray: #95a5a6; }
         body { font-family: -apple-system, sans-serif; background: #f4f7f6; margin: 0; padding: 15px; }
         .hidden { display: none !important; }
         .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-bottom: 20px; }
         button { cursor: pointer; border: none; border-radius: 6px; font-weight: 600; transition: 0.2s; }
         button:active { transform: scale(0.98); }
+        button:disabled { opacity: 0.6; cursor: not-allowed; }
         input, select, textarea { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
 
-        /* =========================================
-           CONTAINER 1: 登录界面 (可自由美化)
-           ========================================= */
         #screen-login { max-width: 450px; margin: 60px auto; border-top: 6px solid var(--primary); }
         .login-nav { display: flex; margin-bottom: 20px; background: #eee; border-radius: 8px; padding: 5px; }
         .login-nav button { flex: 1; padding: 10px; background: none; color: #666; }
         .login-nav button.active { background: white; color: var(--primary); box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
 
-        /* =========================================
-           CONTAINER 2: 教师端监控 (专业、严谨样式)
-           ========================================= */
         #screen-teacher .stat-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
         .stat-box { background: var(--dark); color: white; padding: 15px; border-radius: 10px; text-align: center; }
         .monitor-row { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #eee; align-items: center; font-size: 13px; }
-        .active-tag { color: var(--success); font-weight: bold; border: 1px solid var(--success); padding: 2px 5px; border-radius: 4px; font-size: 10px; }
-
-        /* =========================================
-           CONTAINER 3: 学生端操作 (交互、清晰样式)
-           ========================================= */
+        
         #screen-student .team-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--primary); padding-bottom: 10px; }
         #screen-student .ap-circle { width: 100px; height: 100px; border-radius: 50%; border: 8px solid var(--primary); display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 0 auto 20px; }
         .status-A { color: #e67e22; background: #fff3cd; padding: 3px 8px; border-radius: 4px; }
@@ -73,6 +63,7 @@
         <div class="header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
             <h3>📊 监控中心 <span id="tag-room" style="font-size:14px; font-weight:normal;"></span></h3>
             <div style="display:flex; gap:8px;">
+                <button onclick="logout()" style="background:var(--gray); color:white; padding:8px 12px; font-size:12px;">登出</button>
                 <button onclick="exportCSV()" style="background:var(--success); color:white; padding:8px 12px; font-size:12px;">导出CSV</button>
                 <button onclick="resetGame()" style="background:var(--danger); color:white; padding:8px 12px; font-size:12px;">重置场次</button>
             </div>
@@ -91,7 +82,7 @@
             <h4>流程控制</h4>
             <div style="display:flex; gap:10px;">
                 <button onclick="assignRoles()" style="background:var(--primary); color:white; flex:1; padding:12px;">🎲 随机分配属性</button>
-                <button onclick="nextTurn()" style="background:var(--danger); color:white; flex:1; padding:12px;">⚠️ 结算本轮</button>
+                <button id="btn-next-turn" onclick="nextTurn()" style="background:var(--danger); color:white; flex:1; padding:12px;">⚠️ 结算本轮</button>
             </div>
         </div>
 
@@ -125,9 +116,9 @@
 
         <div id="input-area" class="card">
             <h4>📝 轮次决策</h4>
-            <label>🛡️ 防控投入</label><input type="number" id="in-p" value="0" oninput="calcAP()">
-            <label>🧪 研发投入</label><input type="number" id="in-r" value="0" oninput="calcAP()">
-            <label>📢 维稳投入</label><input type="number" id="in-s" value="0" oninput="calcAP()">
+            <label>🛡️ 防控投入</label><input type="number" id="in-p" value="0" min="0" oninput="calcAP()">
+            <label>🧪 研发投入</label><input type="number" id="in-r" value="0" min="0" oninput="calcAP()">
+            <label>📢 维稳投入</label><input type="number" id="in-s" value="0" min="0" oninput="calcAP()">
             <div style="margin-top:10px; font-weight:bold;">
                 总投入: <span id="s-spent">0</span> / <span id="s-max">0</span>
                 <span id="s-status" style="float:right; color:var(--success)"></span>
@@ -139,14 +130,12 @@
 </div>
 
 <script>
-    // [配置区]
     const SUPABASE_URL = 'https://adjvfvfbjfrtenvbocfw.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFkanZmdmZiamZydGVudmJvY2Z3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxMzAzNjEsImV4cCI6MjA4MTcwNjM2MX0.Fzd2LU2ueKg0V47NSC9nQY_5hHaFY8SqJuV281iXKag';
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     let myTeamId = null, currentRoomId = null, myMaxAP = 10, myExpId = 1, myChart = null;
 
-    // [路由控制]
     function toggleLoginRole(role) {
         document.getElementById('form-student').classList.toggle('hidden', role !== 'student');
         document.getElementById('form-teacher').classList.toggle('hidden', role !== 'teacher');
@@ -161,17 +150,30 @@
         document.getElementById(screen).classList.remove('hidden');
     }
 
-    // [登录逻辑]
+    // [断线重连逻辑整合]
     window.onload = async () => {
         const tid = localStorage.getItem('bod_team_id'), rid = localStorage.getItem('bod_room_id');
+        const teaRoom = localStorage.getItem('bod_tea_room');
+        
         if (tid && rid) {
             const { data } = await supabaseClient.from('teams').select('*').eq('id', tid).single();
-            if(data) { myTeamId = tid; currentRoomId = rid; initStudentUI(data); }
+            if(data) { myTeamId = tid; currentRoomId = rid; initStudentUI(data); return; }
+        }
+        
+        if (teaRoom) {
+            currentRoomId = teaRoom; initTeacherUI();
         }
     };
 
+    function logout() {
+        if(confirm("确定要退出登录吗？")) {
+            localStorage.clear();
+            location.reload();
+        }
+    }
+
     async function studentLogin() {
-        const u = document.getElementById('stu-user').value, p = document.getElementById('stu-pass').value;
+        const u = document.getElementById('stu-user').value.trim(), p = document.getElementById('stu-pass').value.trim();
         const { data, error } = await supabaseClient.from('teams').select('*').eq('username', u).eq('password', p).single();
         if (error || !data) return alert("账号或密码错误");
         myTeamId = data.id; currentRoomId = data.room_id;
@@ -183,10 +185,13 @@
     function teacherLoginVerify() {
         const room = document.getElementById('tea-room').value;
         const pwd = prompt("请输入管理密码:");
-        if (pwd === room + "419") { currentRoomId = room; initTeacherUI(); }
+        if (pwd === room + "419") { 
+            currentRoomId = room; 
+            localStorage.setItem('bod_tea_room', room);
+            initTeacherUI(); 
+        } else if (pwd !== null) alert("密码错误");
     }
 
-    // [初始化 UI]
     async function initTeacherUI() {
         navigateTo('screen-teacher');
         document.getElementById('tag-room').innerText = `Room ${currentRoomId}`;
@@ -203,30 +208,43 @@
         myMaxAP = teamData.ap_count; updateStudentUI(teamData); subscribeToGame();
     }
 
-    // [核心游戏逻辑]
+    // [结算核心逻辑 - 加了防连击锁]
     async function nextTurn() {
-        const { data: teams } = await supabaseClient.from('teams').select('*').eq('room_id', currentRoomId).eq('is_active', true);
-        const { data: room } = await supabaseClient.from('game_rooms').select('*').eq('id', currentRoomId).single();
+        if(!confirm("确定结算本轮？")) return;
         
-        let sumP = 0, sumR = 0, coll = 0;
-        for (let t of teams) {
-            const d = t.last_decision || {p:0, r:0, s:0};
-            if (t.authority > 0) {
-                sumP += d.p * (t.country_type==='B'?1.5:1);
-                sumR += d.r * (t.country_type==='A'?2:1);
-            } else coll++;
-            let nAuth = Math.max(0, Math.min(100, t.authority - (5 + d.p*1.2)*(t.country_type==='A'?1.3:1) + d.s*3));
-            let bAP = (t.country_type==='A')?15:(t.country_type==='B'?12:8);
-            await supabaseClient.from('teams').update({ authority: nAuth, last_decision: null, ap_count: bAP }).eq('id', t.id);
+        const btn = document.getElementById('btn-next-turn');
+        btn.disabled = true;
+        btn.innerText = "结算中...";
+
+        try {
+            const { data: teams } = await supabaseClient.from('teams').select('*').eq('room_id', currentRoomId).eq('is_active', true);
+            const { data: room } = await supabaseClient.from('game_rooms').select('*').eq('id', currentRoomId).single();
+            
+            let sumP = 0, sumR = 0, coll = 0;
+            for (let t of teams) {
+                const d = t.last_decision || {p:0, r:0, s:0};
+                if (t.authority > 0) {
+                    sumP += d.p * (t.country_type==='B'?1.5:1);
+                    sumR += d.r * (t.country_type==='A'?2:1);
+                } else coll++;
+                let nAuth = Math.max(0, Math.min(100, t.authority - (5 + d.p*1.2)*(t.country_type==='A'?1.3:1) + d.s*3));
+                let bAP = (t.country_type==='A')?15:(t.country_type==='B'?12:8);
+                await supabaseClient.from('teams').update({ authority: nAuth, last_decision: null, ap_count: bAP }).eq('id', t.id);
+            }
+            
+            let nR0 = Math.max(0.5, room.infection_rate - (sumP/(teams.length*2.5)*0.1) + coll*0.05);
+            let nInf = Math.floor(room.infection_total * nR0);
+            let nCure = Math.min(100, room.cure_progress + (sumR/(teams.length*5)));
+            
+            await supabaseClient.from('game_rooms').update({ turn: room.turn+1, infection_total: nInf, infection_rate: nR0, cure_progress: nCure }).eq('id', currentRoomId);
+            await supabaseClient.from('game_logs').insert([{ room_id: currentRoomId, exp_id: room.experiment_id, turn: room.turn, infection_total: nInf, infection_rate: nR0, cure_progress: nCure }]);
+        } catch (error) {
+            console.error(error);
+            alert("结算发生网络错误，请稍后重试！");
+        } finally {
+            btn.disabled = false;
+            btn.innerText = "⚠️ 结算本轮";
         }
-        
-        let nR0 = Math.max(0.5, room.infection_rate - (sumP/(teams.length*2.5)*0.1) + coll*0.05);
-        let nInf = Math.floor(room.infection_total * nR0);
-        let nCure = Math.min(100, room.cure_progress + (sumR/(teams.length*5)));
-        
-        // 更新数据库，注意 exp_id 来自房间表当前的 experiment_id
-        await supabaseClient.from('game_rooms').update({ turn: room.turn+1, infection_total: nInf, infection_rate: nR0, cure_progress: nCure }).eq('id', currentRoomId);
-        await supabaseClient.from('game_logs').insert([{ room_id: currentRoomId, exp_id: room.experiment_id, turn: room.turn, infection_total: nInf, infection_rate: nR0, cure_progress: nCure }]);
     }
 
     async function resetGame() {
@@ -247,7 +265,6 @@
         link.click();
     }
 
-    // [辅助工具]
     function calcAP() {
         const p = parseInt(document.getElementById('in-p').value)||0;
         const r = parseInt(document.getElementById('in-r').value)||0;
@@ -265,6 +282,7 @@
         document.getElementById('btn-submit').disabled = true;
     }
 
+    // [实时监听修复 - 此处依赖 Supabase 后台开启 Publications]
     function subscribeToGame() {
         supabaseClient.channel('any').on('postgres_changes', { event: '*', schema: 'public' }, (payload) => {
             if(payload.table === 'teams' && payload.new.room_id == currentRoomId) {
@@ -320,7 +338,6 @@
 
     async function fetchHistoryAndDraw() {
         const { data: logs } = await supabaseClient.from('game_logs').select('*').eq('room_id', currentRoomId).order('turn');
-        // 仅绘制当前实验场次的数据，或者全部绘制？这里建议只绘制当前 exp_id 的
         const { data: room } = await supabaseClient.from('game_rooms').select('experiment_id').eq('id', currentRoomId).single();
         const currentLogs = logs.filter(l => l.exp_id === room.experiment_id);
         if(myChart) {
@@ -331,7 +348,6 @@
         }
     }
 
-    // [其余工具函数保持原样...]
     async function updateTeamInfo() {
         const name = document.getElementById('edit-name').value;
         const members = document.getElementById('edit-members').value;
@@ -347,11 +363,6 @@
             await supabaseClient.from('teams').update({ country_type: type, ap_count: ap, authority: 100 }).eq('id', teams[i].id);
         }
     }
-    async function fetchOtherTeams() {
-        const { data } = await supabaseClient.from('teams').select('id, name').eq('room_id', currentRoomId).neq('id', myTeamId).eq('is_active', true);
-        document.getElementById('aid-target').innerHTML = '<option value="">-- 选择 --</option>' + data.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
-    }
-    function logout() { localStorage.clear(); location.reload(); }
 </script>
 </body>
 </html>
