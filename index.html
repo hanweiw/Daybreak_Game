@@ -3,139 +3,182 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>破晓行动 v6.6 | 完整修复版</title>
+    <title>破晓行动 v6.7 | 沉浸式驾驶舱版</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <style>
-        :root { --primary: #3498db; --danger: #e74c3c; --success: #2ecc71; --dark: #2c3e50; --gray: #95a5a6; }
-        body { font-family: -apple-system, sans-serif; background: #f4f7f6; margin: 0; padding: 15px; }
+        :root { --primary: #3498db; --danger: #e74c3c; --success: #2ecc71; --dark: #2c3e50; --gray: #95a5a6; --bg: #f0f4f8; }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; padding: 15px; color: #333; }
         .hidden { display: none !important; }
-        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-bottom: 20px; }
-        button { cursor: pointer; border: none; border-radius: 6px; font-weight: 600; transition: 0.2s; }
-        button:active { transform: scale(0.98); }
+        .card { background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 15px; }
+        button { cursor: pointer; border: none; border-radius: 6px; font-weight: 600; transition: 0.2s; outline: none; }
+        button:active { transform: scale(0.96); }
         button:disabled { opacity: 0.6; cursor: not-allowed; }
-        input, select, textarea { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        input, select, textarea { width: 100%; padding: 10px; margin: 6px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
 
-        #screen-login { max-width: 450px; margin: 60px auto; border-top: 6px solid var(--primary); }
-        .login-nav { display: flex; margin-bottom: 20px; background: #eee; border-radius: 8px; padding: 5px; }
-        .login-nav button { flex: 1; padding: 10px; background: none; color: #666; }
-        .login-nav button.active { background: white; color: var(--primary); box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        /* --- 登录 UI --- */
+        #screen-login { max-width: 400px; margin: 80px auto; border-top: 5px solid var(--primary); }
+        .login-nav { display: flex; margin-bottom: 15px; background: #eee; border-radius: 6px; padding: 4px; }
+        .login-nav button { flex: 1; padding: 8px; background: none; color: #666; }
+        .login-nav button.active { background: white; color: var(--primary); box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
 
-        #screen-teacher .stat-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-        .stat-box { background: var(--dark); color: white; padding: 15px; border-radius: 10px; text-align: center; }
-        .monitor-row { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #eee; align-items: center; font-size: 13px; }
+        /* --- 教师端驾驶舱 UI --- */
+        .tea-header { display: flex; justify-content: space-between; align-items: center; background: white; padding: 10px 20px; border-radius: 10px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        #screen-teacher-layout { display: grid; grid-template-columns: 2fr 1fr; gap: 15px; align-items: start; height: calc(100vh - 90px); }
+        .left-panel { display: flex; flex-direction: column; gap: 15px; }
+        .right-panel { background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); height: 100%; overflow-y: auto; box-sizing: border-box; border-top: 4px solid var(--dark); }
         
-        #screen-student .team-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--primary); padding-bottom: 10px; }
-        #screen-student .ap-circle { width: 100px; height: 100px; border-radius: 50%; border: 8px solid var(--primary); display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 0 auto 20px; }
-        .status-A { color: #e67e22; background: #fff3cd; padding: 3px 8px; border-radius: 4px; }
-        .status-B { color: #c0392b; background: #f8d7da; padding: 3px 8px; border-radius: 4px; }
-        .status-C { color: #27ae60; background: #d4edda; padding: 3px 8px; border-radius: 4px; }
+        .stat-grid-small { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .stat-box-small { background: var(--dark); color: white; padding: 10px; border-radius: 8px; text-align: center; }
+        .stat-box-small h4 { margin: 0; font-size: 12px; font-weight: normal; color: #cbd5e1; }
+        .stat-box-small p { margin: 4px 0 0; font-size: 22px; font-weight: bold; }
+
+        .chart-row { display: flex; gap: 15px; }
+        .chart-box { flex: 1; background: white; padding: 12px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .chart-box h4 { margin: 0 0 8px 0; font-size: 13px; color: #64748b; text-align: center; }
+        .chart-container { height: 180px; position: relative; }
+
+        .team-compact { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px; margin-bottom: 8px; }
+        .team-compact.dead { opacity: 0.5; filter: grayscale(1); }
+        .team-compact-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+        .team-compact-stats { display: flex; justify-content: space-between; font-size: 12px; color: #475569; }
+
+        /* --- 标签 UI --- */
+        .status-A { color: #d97706; background: #fef3c7; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; }
+        .status-B { color: #b91c1c; background: #fee2e2; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; }
+        .status-C { color: #15803d; background: #dcfce3; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; }
+        
+        /* --- 学生端 UI (保持清爽) --- */
+        #screen-student { max-width: 600px; margin: 0 auto; }
+        #screen-student .ap-circle { width: 90px; height: 90px; border-radius: 50%; border: 6px solid var(--primary); display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 0 auto 15px; }
     </style>
 </head>
 <body>
 
-<div class="main-wrapper">
-
     <div id="screen-login" class="card">
-        <h2 style="margin-top:0">🛡️ 破晓行动</h2>
+        <h2 style="text-align:center; color:var(--dark); margin-top:0;">🛡️ 破晓行动系统</h2>
         <div class="login-nav">
             <button id="tab-stu" class="active" onclick="toggleLoginRole('student')">学生入口</button>
-            <button id="tab-tea" onclick="toggleLoginRole('teacher')">教师入口</button>
+            <button id="tab-tea" onclick="toggleLoginRole('teacher')">指挥入口</button>
         </div>
 
         <div id="form-student">
-            <input type="text" id="stu-user" placeholder="账号 (如: 100101)">
+            <input type="text" id="stu-user" placeholder="分配的账号 (如: 100101)">
             <input type="password" id="stu-pass" placeholder="随机密码">
-            <button onclick="studentLogin()" style="background: var(--primary); color: white; width: 100%; padding: 15px;">进入实验</button>
+            <button onclick="studentLogin()" style="background: var(--primary); color: white; width: 100%; padding: 12px; margin-top:10px;">进入实验</button>
         </div>
 
         <div id="form-teacher" class="hidden">
             <select id="tea-room">
-                <option value="1001">房间 1001</option><option value="1002">房间 1002</option>
-                <option value="1003">房间 1003</option><option value="1004">房间 1004</option>
+                <option value="1001">指挥房间 1001</option><option value="1002">指挥房间 1002</option>
+                <option value="1003">指挥房间 1003</option><option value="1004">指挥房间 1004</option>
             </select>
-            <button onclick="teacherLoginVerify()" style="background: var(--dark); color: white; width: 100%; padding: 15px;">管理后台</button>
+            <button onclick="teacherLoginVerify()" style="background: var(--dark); color: white; width: 100%; padding: 12px; margin-top:10px;">进入监控台</button>
         </div>
     </div>
 
     <div id="screen-teacher" class="hidden">
-        <div class="header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-            <h3>📊 监控中心 <span id="tag-room" style="font-size:14px; font-weight:normal;"></span></h3>
-            <div style="display:flex; gap:8px;">
-                <button onclick="logout()" style="background:var(--gray); color:white; padding:8px 12px; font-size:12px;">登出</button>
-                <button onclick="exportCSV()" style="background:var(--success); color:white; padding:8px 12px; font-size:12px;">导出CSV</button>
-                <button onclick="resetGame()" style="background:var(--danger); color:white; padding:8px 12px; font-size:12px;">重置场次</button>
-            </div>
-        </div>
-
-        <div class="stat-grid">
-            <div class="stat-box"><h4>实验场次</h4><p id="t-exp">1</p></div>
-            <div class="stat-box"><h4>当前轮数</h4><p id="t-turn">1</p></div>
-            <div class="stat-box"><h4>全球感染</h4><p id="t-inf">0</p></div>
-            <div class="stat-box"><h4>解药进度</h4><p id="t-cure">0%</p></div>
-        </div>
-
-        <div class="card" style="margin-top:15px;"><canvas id="infectionChart" style="height:200px;"></canvas></div>
-
-        <div class="card">
-            <h4>流程控制</h4>
+        
+        <div class="tea-header">
+            <h3 style="margin:0; color:var(--dark);">🌍 破晓行动监控台 <span id="tag-room" style="color:var(--primary); font-size:15px; margin-left:10px;"></span></h3>
             <div style="display:flex; gap:10px;">
-                <button onclick="assignRoles()" style="background:var(--primary); color:white; flex:1; padding:12px;">🎲 随机分配属性</button>
-                <button id="btn-next-turn" onclick="nextTurn()" style="background:var(--danger); color:white; flex:1; padding:12px;">⚠️ 结算本轮</button>
+                <button onclick="logout()" style="background:var(--gray); color:white; padding:6px 15px; font-size:13px;">登出</button>
+                <button onclick="exportCSV()" style="background:var(--success); color:white; padding:6px 15px; font-size:13px;">📥 导出CSV</button>
+                <button onclick="resetGame()" style="background:var(--danger); color:white; padding:6px 15px; font-size:13px;">🔄 重置场次</button>
             </div>
         </div>
 
-        <h4>小组实时状态: <span id="t-online">0</span> 组在线</h4>
-        <div id="team-list"></div>
+        <div id="screen-teacher-layout">
+            
+            <div class="left-panel">
+                
+                <div class="stat-grid-small">
+                    <div class="stat-box-small"><h4>实验场次</h4><p id="t-exp">1</p></div>
+                    <div class="stat-box-small"><h4>当前轮数</h4><p id="t-turn">1</p></div>
+                    <div class="stat-box-small"><h4>全球感染数</h4><p id="t-inf" style="color:#ff8a65;">0</p></div>
+                    <div class="stat-box-small"><h4>解药进度</h4><p id="t-cure" style="color:#69f0ae;">0%</p></div>
+                </div>
+
+                <div class="chart-row">
+                    <div class="chart-box">
+                        <h4>📉 全球感染蔓延趋势</h4>
+                        <div class="chart-container"><canvas id="chart-inf"></canvas></div>
+                    </div>
+                    <div class="chart-box">
+                        <h4>🧪 解药研发进度 (%)</h4>
+                        <div class="chart-container"><canvas id="chart-cure"></canvas></div>
+                    </div>
+                </div>
+
+                <div class="card" style="margin-bottom:0; padding:12px;">
+                    <div style="display:flex; gap:12px;">
+                        <button onclick="assignRoles()" style="background:var(--primary); color:white; flex:1; padding:12px; font-size:15px;">🎲 随机分配属性</button>
+                        <button id="btn-next-turn" onclick="nextTurn()" style="background:var(--danger); color:white; flex:1; padding:12px; font-size:15px; box-shadow: 0 4px 10px rgba(231, 76, 60, 0.3);">⚠️ 结算本轮决策</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="right-panel">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid #f1f5f9; padding-bottom:10px; margin-bottom:15px;">
+                    <h4 style="margin:0; color:var(--dark);">小组实时状态</h4>
+                    <span style="background:#e2e8f0; font-size:12px; padding:2px 8px; border-radius:10px; font-weight:bold;"><span id="t-online" style="color:var(--success);">0</span> 组在线</span>
+                </div>
+                <div id="team-list"></div>
+            </div>
+        </div>
     </div>
 
     <div id="screen-student" class="hidden">
-        <div class="team-header">
-            <h2 id="s-team-display" style="margin:0;">载入中...</h2>
-            <button onclick="logout()" style="background:var(--gray); color:white; padding:5px 12px; font-size:12px;">登出</button>
+        <div class="card" style="display:flex; justify-content:space-between; align-items:center; padding:12px 20px;">
+            <h2 id="s-team-display" style="margin:0; color:var(--dark); font-size:20px;">载入中...</h2>
+            <button onclick="logout()" style="background:var(--gray); color:white; padding:6px 15px; font-size:12px;">登出</button>
         </div>
 
-        <div class="card" style="margin-top:15px; border-left: 5px solid var(--primary);">
+        <div class="card" style="border-left: 4px solid var(--primary); padding:12px 20px;">
             <details>
-                <summary style="cursor:pointer; font-weight:bold; color:var(--primary)">✏️ 修改资料 (仅限本场)</summary>
-                <input type="text" id="edit-name" placeholder="国家名称">
-                <textarea id="edit-members" placeholder="成员姓名与学号"></textarea>
-                <button onclick="updateTeamInfo()" style="background:var(--primary); color:white; padding:8px; width:100px;">保存</button>
+                <summary style="cursor:pointer; font-weight:bold; color:var(--primary); font-size:14px;">✏️ 登记组员信息 (点击展开)</summary>
+                <div style="margin-top:10px;">
+                    <input type="text" id="edit-name" placeholder="国家名称">
+                    <textarea id="edit-members" placeholder="成员姓名与学号" rows="2"></textarea>
+                    <button onclick="updateTeamInfo()" style="background:var(--primary); color:white; padding:8px 20px; font-size:13px;">💾 保存资料</button>
+                </div>
             </details>
         </div>
 
         <div class="card" style="text-align:center;">
-            <span id="s-type-tag" style="font-weight:bold;">等待分配...</span>
-            <div class="ap-circle" style="margin-top:15px;">
-                <span style="font-size:12px;">可用 AP</span>
-                <span id="s-ap" style="font-size:32px; font-weight:bold;">0</span>
+            <span id="s-type-tag" style="font-weight:bold; font-size:14px;">等待指挥分配...</span>
+            <div class="ap-circle" style="margin-top:20px;">
+                <span style="font-size:12px; color:#666;">可用 AP</span>
+                <span id="s-ap" style="font-size:36px; font-weight:bold; color:var(--dark);">0</span>
             </div>
-            <p>权威值: <b id="s-auth" style="color:var(--danger)">0</b> / 100</p>
+            <p style="margin-bottom:5px;">政府权威值: <b id="s-auth" style="color:var(--danger); font-size:20px;">0</b> / 100</p>
         </div>
 
         <div id="input-area" class="card">
-            <h4>📝 轮次决策</h4>
-            <label>🛡️ 防控投入</label><input type="number" id="in-p" value="0" min="0" oninput="calcAP()">
-            <label>🧪 研发投入</label><input type="number" id="in-r" value="0" min="0" oninput="calcAP()">
-            <label>📢 维稳投入</label><input type="number" id="in-s" value="0" min="0" oninput="calcAP()">
-            <div style="margin-top:10px; font-weight:bold;">
+            <h4 style="margin-top:0; border-bottom:1px solid #eee; padding-bottom:10px;">📝 本轮资源投入</h4>
+            <div style="display:grid; grid-template-columns: auto 1fr; gap:10px; align-items:center;">
+                <label>🛡️ 防控</label><input type="number" id="in-p" value="0" min="0" oninput="calcAP()">
+                <label>🧪 研发</label><input type="number" id="in-r" value="0" min="0" oninput="calcAP()">
+                <label>📢 维稳</label><input type="number" id="in-s" value="0" min="0" oninput="calcAP()">
+            </div>
+            <div style="margin-top:15px; background:#f8fafc; padding:10px; border-radius:6px; font-weight:bold; font-size:14px;">
                 总投入: <span id="s-spent">0</span> / <span id="s-max">0</span>
                 <span id="s-status" style="float:right; color:var(--success)"></span>
             </div>
-            <button id="btn-submit" onclick="submitDecision()" style="background:var(--primary); color:white; width:100%; padding:15px; margin-top:10px;">🚀 提交决策</button>
+            <button id="btn-submit" onclick="submitDecision()" style="background:var(--primary); color:white; width:100%; padding:14px; margin-top:15px; font-size:16px;">🚀 确认提交</button>
         </div>
     </div>
 
-</div>
-
 <script>
+    // ================== 核心配置 ==================
     const SUPABASE_URL = 'https://adjvfvfbjfrtenvbocfw.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFkanZmdmZiamZydGVudmJvY2Z3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxMzAzNjEsImV4cCI6MjA4MTcwNjM2MX0.Fzd2LU2ueKg0V47NSC9nQY_5hHaFY8SqJuV281iXKag';
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    let myTeamId = null, currentRoomId = null, myMaxAP = 10, myExpId = 1, myChart = null;
+    let myTeamId = null, currentRoomId = null, myMaxAP = 10, chartInf = null, chartCure = null;
 
+    // ================== 界面导航与重连 ==================
     function toggleLoginRole(role) {
         document.getElementById('form-student').classList.toggle('hidden', role !== 'student');
         document.getElementById('form-teacher').classList.toggle('hidden', role !== 'teacher');
@@ -150,7 +193,6 @@
         document.getElementById(screen).classList.remove('hidden');
     }
 
-    // [断线重连逻辑整合]
     window.onload = async () => {
         const tid = localStorage.getItem('bod_team_id'), rid = localStorage.getItem('bod_room_id');
         const teaRoom = localStorage.getItem('bod_tea_room');
@@ -159,23 +201,18 @@
             const { data } = await supabaseClient.from('teams').select('*').eq('id', tid).single();
             if(data) { myTeamId = tid; currentRoomId = rid; initStudentUI(data); return; }
         }
-        
-        if (teaRoom) {
-            currentRoomId = teaRoom; initTeacherUI();
-        }
+        if (teaRoom) { currentRoomId = teaRoom; initTeacherUI(); }
     };
 
     function logout() {
-        if(confirm("确定要退出登录吗？")) {
-            localStorage.clear();
-            location.reload();
-        }
+        if(confirm("确定要退出吗？")) { localStorage.clear(); location.reload(); }
     }
 
+    // ================== 登录处理 ==================
     async function studentLogin() {
         const u = document.getElementById('stu-user').value.trim(), p = document.getElementById('stu-pass').value.trim();
         const { data, error } = await supabaseClient.from('teams').select('*').eq('username', u).eq('password', p).single();
-        if (error || !data) return alert("账号或密码错误");
+        if (error || !data) return alert("账号或密码错误！");
         myTeamId = data.id; currentRoomId = data.room_id;
         localStorage.setItem('bod_team_id', myTeamId); localStorage.setItem('bod_room_id', currentRoomId);
         await supabaseClient.from('teams').update({ is_active: true }).eq('id', myTeamId);
@@ -184,20 +221,18 @@
 
     function teacherLoginVerify() {
         const room = document.getElementById('tea-room').value;
-        const pwd = prompt("请输入管理密码:");
+        const pwd = prompt("请输入房间管理密码:");
         if (pwd === room + "419") { 
-            currentRoomId = room; 
-            localStorage.setItem('bod_tea_room', room);
-            initTeacherUI(); 
+            currentRoomId = room; localStorage.setItem('bod_tea_room', room); initTeacherUI(); 
         } else if (pwd !== null) alert("密码错误");
     }
 
+    // ================== 初始化逻辑 ==================
     async function initTeacherUI() {
         navigateTo('screen-teacher');
-        document.getElementById('tag-room').innerText = `Room ${currentRoomId}`;
+        document.getElementById('tag-room').innerText = `[房间 ${currentRoomId}]`;
         const { data } = await supabaseClient.from('game_rooms').select('*').eq('id', currentRoomId).single();
-        myExpId = data.experiment_id;
-        initChart(); subscribeToGame(); fetchTeamList(); fetchHistoryAndDraw(); updateTeacherStats(data);
+        initCharts(); subscribeToGame(); fetchTeamList(); fetchHistoryAndDraw(); updateTeacherStats(data);
     }
 
     function initStudentUI(teamData) {
@@ -208,13 +243,36 @@
         myMaxAP = teamData.ap_count; updateStudentUI(teamData); subscribeToGame();
     }
 
-    // [结算核心逻辑 - 加了防连击锁]
-    async function nextTurn() {
-        if(!confirm("确定结算本轮？")) return;
+    // ================== 纯前端重置逻辑 (完美解决卡死) ==================
+    async function resetGame() {
+        if(!confirm("⚠️ 确定重置当前实验？\n此操作会自动开启新场次，以往数据会保存在后台可以下载。")) return;
         
+        // 1. 先查出当前的 experiment_id
+        const { data: room } = await supabaseClient.from('game_rooms').select('experiment_id').eq('id', currentRoomId).single();
+        const nextExpId = (room?.experiment_id || 1) + 1;
+
+        // 2. 强制用前端进行更新，绕过存储过程的 bug
+        const { error: e1 } = await supabaseClient.from('game_rooms')
+            .update({ experiment_id: nextExpId, turn: 1, infection_total: 1000, infection_rate: 1.5, cure_progress: 0, global_authority: 100 })
+            .eq('id', currentRoomId);
+            
+        const { error: e2 } = await supabaseClient.from('teams')
+            .update({ country_type: '待定', ap_count: 10, authority: 100, last_decision: null, is_active: false })
+            .eq('room_id', currentRoomId);
+
+        if (e1 || e2) {
+            alert("重置出现网络异常！");
+        } else {
+            alert("✅ 已成功切换到第 " + nextExpId + " 场实验！");
+            location.reload();
+        }
+    }
+
+    // ================== 结算逻辑 (防连击版) ==================
+    async function nextTurn() {
+        if(!confirm("确定结算本轮并开启下一轮？")) return;
         const btn = document.getElementById('btn-next-turn');
-        btn.disabled = true;
-        btn.innerText = "结算中...";
+        btn.disabled = true; btn.innerText = "⏳ 后台演算中...";
 
         try {
             const { data: teams } = await supabaseClient.from('teams').select('*').eq('room_id', currentRoomId).eq('is_active', true);
@@ -238,86 +296,82 @@
             
             await supabaseClient.from('game_rooms').update({ turn: room.turn+1, infection_total: nInf, infection_rate: nR0, cure_progress: nCure }).eq('id', currentRoomId);
             await supabaseClient.from('game_logs').insert([{ room_id: currentRoomId, exp_id: room.experiment_id, turn: room.turn, infection_total: nInf, infection_rate: nR0, cure_progress: nCure }]);
-        } catch (error) {
-            console.error(error);
-            alert("结算发生网络错误，请稍后重试！");
+        } catch (e) {
+            alert("网络错误导致结算失败。");
         } finally {
-            btn.disabled = false;
-            btn.innerText = "⚠️ 结算本轮";
+            btn.disabled = false; btn.innerText = "⚠️ 结算本轮决策";
         }
     }
 
-    async function resetGame() {
-        if(!confirm("确定重置？这将开启新的实验场次(Exp ID +1)")) return;
-        await supabaseClient.rpc('reset_room_data', { target_room_id: parseInt(currentRoomId) });
-        location.reload();
-    }
-
-    async function exportCSV() {
-        const { data: logs } = await supabaseClient.from('game_logs').select('*').eq('room_id', currentRoomId).order('created_at', { ascending: true });
-        if(!logs.length) return alert("无数据");
-        let csv = "\uFEFF实验场次,轮数,感染数,R0,解药进度,记录时间\n";
-        logs.forEach(l => csv += `${l.exp_id},${l.turn},${l.infection_total},${l.infection_rate},${l.cure_progress},${l.created_at}\n`);
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement("a");
-        link.href = URL.createObjectURL(blob);
-        link.download = `ExpData_Room${currentRoomId}.csv`;
-        link.click();
-    }
-
-    function calcAP() {
-        const p = parseInt(document.getElementById('in-p').value)||0;
-        const r = parseInt(document.getElementById('in-r').value)||0;
-        const s = parseInt(document.getElementById('in-s').value)||0;
-        const total = p + r + s;
-        document.getElementById('s-spent').innerText = total;
-        document.getElementById('s-spent').style.color = total > myMaxAP ? 'red' : 'black';
-        document.getElementById('btn-submit').disabled = total > myMaxAP;
-    }
-
-    async function submitDecision() {
-        const p = parseInt(document.getElementById('in-p').value)||0, r = parseInt(document.getElementById('in-r').value)||0, s = parseInt(document.getElementById('in-s').value)||0;
-        await supabaseClient.from('teams').update({ last_decision: {p, r, s} }).eq('id', myTeamId);
-        document.getElementById('s-status').innerText = "✅ 已提交";
-        document.getElementById('btn-submit').disabled = true;
-    }
-
-    // [实时监听修复 - 此处依赖 Supabase 后台开启 Publications]
+    // ================== 实时刷新机制 ==================
     function subscribeToGame() {
         supabaseClient.channel('any').on('postgres_changes', { event: '*', schema: 'public' }, (payload) => {
             if(payload.table === 'teams' && payload.new.room_id == currentRoomId) {
                 if(myTeamId) { if(payload.new.id == myTeamId) updateStudentUI(payload.new); }
-                else fetchTeamList();
+                else fetchTeamList(); // 自动刷新右侧栏
             }
             if(payload.table === 'game_rooms' && payload.new.id == currentRoomId) {
                 if(myTeamId) { 
-                    alert("新一轮已开始！"); 
+                    alert("🔔 指挥中心已结算！第 " + payload.new.turn + " 轮开始！"); 
                     document.getElementById('s-status').innerText = ""; 
                     document.getElementById('btn-submit').disabled = false;
-                } else { updateTeacherStats(payload.new); fetchHistoryAndDraw(); }
+                    document.getElementById('in-p').value = 0; document.getElementById('in-r').value = 0; document.getElementById('in-s').value = 0;
+                    calcAP();
+                } else { 
+                    updateTeacherStats(payload.new); fetchHistoryAndDraw(); 
+                }
             }
         }).subscribe();
     }
 
-    function updateStudentUI(t) {
-        myMaxAP = t.ap_count;
-        document.getElementById('s-ap').innerText = t.ap_count;
-        document.getElementById('s-max').innerText = t.ap_count;
-        document.getElementById('s-auth').innerText = Math.floor(t.authority);
-        document.getElementById('s-type-tag').innerText = t.country_type === '待定' ? "等待分配..." : t.country_type + " 型国家";
-        document.getElementById('s-type-tag').className = "status-" + t.country_type;
+    // ================== 双图表与UI渲染 ==================
+    function initCharts() {
+        // 图表 1: 感染数 (没有 100 的封顶限制)
+        chartInf = new Chart(document.getElementById('chart-inf'), {
+            type: 'line',
+            data: { labels: [], datasets: [{ label: '感染数', data: [], borderColor: '#ff8a65', backgroundColor: 'rgba(255,138,101,0.1)', fill: true, tension: 0.3 }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}} }
+        });
+        // 图表 2: 解药进度 (0-100 封顶限制)
+        chartCure = new Chart(document.getElementById('chart-cure'), {
+            type: 'line',
+            data: { labels: [], datasets: [{ label: '解药 %', data: [], borderColor: '#69f0ae', backgroundColor: 'rgba(105,240,174,0.1)', fill: true, tension: 0.3 }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins:{legend:{display:false}}, scales:{y:{min:0, max:100}} }
+        });
+    }
+
+    async function fetchHistoryAndDraw() {
+        const { data: logs } = await supabaseClient.from('game_logs').select('*').eq('room_id', currentRoomId).order('turn');
+        const { data: room } = await supabaseClient.from('game_rooms').select('experiment_id').eq('id', currentRoomId).single();
+        const currentLogs = logs.filter(l => l.exp_id === room.experiment_id);
+        
+        if(chartInf && chartCure) {
+            const labels = currentLogs.map(l => "R"+l.turn);
+            chartInf.data.labels = labels;
+            chartInf.data.datasets[0].data = currentLogs.map(l => l.infection_total);
+            chartInf.update();
+
+            chartCure.data.labels = labels;
+            chartCure.data.datasets[0].data = currentLogs.map(l => l.cure_progress);
+            chartCure.update();
+        }
     }
 
     async function fetchTeamList() {
         const { data: teams } = await supabaseClient.from('teams').select('*').eq('room_id', currentRoomId).order('username');
         document.getElementById('t-online').innerText = teams.filter(t=>t.is_active).length;
+        
         document.getElementById('team-list').innerHTML = teams.map(t => `
-            <div class="monitor-row" style="${!t.is_active?'opacity:0.3':''}">
-                <div style="width:35%"><b>${t.name}</b> <small>(${t.username})</small></div>
-                <div style="width:15%"><span class="status-${t.country_type}">${t.country_type}</span></div>
-                <div style="width:15%">AP:${t.ap_count}</div>
-                <div style="width:15%">权:${Math.floor(t.authority)}</div>
-                <div style="width:10%">${t.last_decision?'✅':'⏳'}</div>
+            <div class="team-compact ${t.authority<=0?'dead':''}" style="${!t.is_active?'opacity:0.4':''}">
+                <div class="team-compact-header">
+                    <strong style="font-size:14px; color:#1e293b;">${t.name} <span style="font-size:11px;color:#94a3b8;font-weight:normal;">(${t.username})</span></strong>
+                    <span class="status-${t.country_type}">${t.country_type}</span>
+                </div>
+                <div class="team-compact-stats">
+                    <span>⚡ AP: <b style="color:#0f172a;">${t.ap_count}</b></span>
+                    <span>👑 权: <b style="${t.authority<30?'color:#e74c3c':'color:#0f172a'};">${Math.floor(t.authority)}</b></span>
+                    <span style="font-weight:bold;">${t.last_decision?'✅ 已就绪':'⏳ 决策中'}</span>
+                </div>
             </div>`).join('');
     }
 
@@ -328,33 +382,40 @@
         document.getElementById('t-cure').innerText = r.cure_progress.toFixed(1) + '%';
     }
 
-    function initChart() {
-        myChart = new Chart(document.getElementById('infectionChart'), {
-            type: 'line',
-            data: { labels: [], datasets: [{ label: '感染', data: [], borderColor: '#ff7675' }, { label: '解药', data: [], borderColor: '#55efc4' }] },
-            options: { responsive: true, maintainAspectRatio: false }
-        });
+    function updateStudentUI(t) {
+        myMaxAP = t.ap_count;
+        document.getElementById('s-ap').innerText = t.ap_count;
+        document.getElementById('s-max').innerText = t.ap_count;
+        document.getElementById('s-auth').innerText = Math.floor(t.authority);
+        document.getElementById('s-type-tag').innerText = t.country_type === '待定' ? "等待指挥分配属性..." : "分配属性: " + t.country_type + " 型";
+        document.getElementById('s-type-tag').className = "status-" + t.country_type;
     }
 
-    async function fetchHistoryAndDraw() {
-        const { data: logs } = await supabaseClient.from('game_logs').select('*').eq('room_id', currentRoomId).order('turn');
-        const { data: room } = await supabaseClient.from('game_rooms').select('experiment_id').eq('id', currentRoomId).single();
-        const currentLogs = logs.filter(l => l.exp_id === room.experiment_id);
-        if(myChart) {
-            myChart.data.labels = currentLogs.map(l => "R"+l.turn);
-            myChart.data.datasets[0].data = currentLogs.map(l => l.infection_total);
-            myChart.data.datasets[1].data = currentLogs.map(l => l.cure_progress);
-            myChart.update();
-        }
+    // ================== 其余功能工具 ==================
+    async function exportCSV() {
+        const { data: logs } = await supabaseClient.from('game_logs').select('*').eq('room_id', currentRoomId).order('created_at', { ascending: true });
+        if(!logs.length) return alert("当前房间无实验数据！");
+        let csv = "\uFEFF实验场次,轮数,感染数,R0,解药进度,记录时间\n";
+        logs.forEach(l => csv += `${l.exp_id},${l.turn},${l.infection_total},${l.infection_rate},${l.cure_progress},${l.created_at}\n`);
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = `Dawn_Room${currentRoomId}.csv`; link.click();
     }
 
-    async function updateTeamInfo() {
-        const name = document.getElementById('edit-name').value;
-        const members = document.getElementById('edit-members').value;
-        await supabaseClient.from('teams').update({ name, members }).eq('id', myTeamId);
-        document.getElementById('s-team-display').innerText = name;
-        alert("资料已更新");
+    function calcAP() {
+        const p = parseInt(document.getElementById('in-p').value)||0, r = parseInt(document.getElementById('in-r').value)||0, s = parseInt(document.getElementById('in-s').value)||0;
+        const total = p + r + s;
+        document.getElementById('s-spent').innerText = total;
+        document.getElementById('s-spent').style.color = total > myMaxAP ? 'red' : 'black';
+        document.getElementById('btn-submit').disabled = total > myMaxAP;
     }
+
+    async function submitDecision() {
+        const p = parseInt(document.getElementById('in-p').value)||0, r = parseInt(document.getElementById('in-r').value)||0, s = parseInt(document.getElementById('in-s').value)||0;
+        await supabaseClient.from('teams').update({ last_decision: {p, r, s} }).eq('id', myTeamId);
+        document.getElementById('s-status').innerText = "✅ 锁定";
+        document.getElementById('btn-submit').disabled = true;
+    }
+
     async function assignRoles() {
         const { data: teams } = await supabaseClient.from('teams').select('*').eq('room_id', currentRoomId).eq('is_active', true);
         const p = ['A', 'B', 'B', 'C', 'C'];
@@ -362,6 +423,13 @@
             let type = p[i % p.length], ap = (type==='A'?15:(type==='B'?12:8));
             await supabaseClient.from('teams').update({ country_type: type, ap_count: ap, authority: 100 }).eq('id', teams[i].id);
         }
+        alert("动态属性分配完成！");
+    }
+
+    async function updateTeamInfo() {
+        const name = document.getElementById('edit-name').value, members = document.getElementById('edit-members').value;
+        await supabaseClient.from('teams').update({ name, members }).eq('id', myTeamId);
+        document.getElementById('s-team-display').innerText = name; alert("资料已保存！");
     }
 </script>
 </body>
